@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+}
+
+enum ConsultationStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // A user with role DOCTOR has one DoctorProfile
+  doctorProfile DoctorProfile?
+
+  // Consultations as patient
+  patientConsultations Consultation[] @relation("PatientConsultations")
+
+  // Messages sent by this user
+  messages Message[]
+
+  @@map("users")
+}
+
+model DoctorProfile {
+  id               String @id @default(uuid())
+  specialization   String
+  yearsOfExperience Int    @map("years_of_experience")
+
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Consultations assigned to this doctor
+  consultations Consultation[]
+
+  @@map("doctor_profiles")
+}
+
+model Consultation {
+  id        String             @id @default(uuid())
+  status    ConsultationStatus @default(PENDING)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  patientId String @map("patient_id")
+  patient   User   @relation("PatientConsultations", fields: [patientId], references: [id])
+
+  doctorProfileId String        @map("doctor_profile_id")
+  doctorProfile   DoctorProfile @relation(fields: [doctorProfileId], references: [id])
+
+  messages Message[]
+
+  @@map("consultations")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  consultationId String       @map("consultation_id")
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+
+  senderId String @map("sender_id")
+  sender   User   @relation(fields: [senderId], references: [id])
+
+  @@map("messages")
+}
